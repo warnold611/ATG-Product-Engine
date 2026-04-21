@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { C } from '@/lib/colors'
-import { Product, Settings } from '@/lib/supabase'
+import { Product, Settings, Idea } from '@/lib/supabase'
 import { Header } from '@/components/Header'
 import { KanbanCard } from '@/components/KanbanCard'
 import { ProductPanel } from '@/components/ProductPanel'
@@ -93,6 +93,23 @@ export default function DashboardPage() {
     await loadProducts()
   }
 
+  // ── Produce idea directly from IDEAS column ───────────────────────────────
+  const handleProduceIdea = async (idea: Idea) => {
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/generate-outline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea_id: idea.id }),
+      })
+      const d = await res.json()
+      if (d.error) throw new Error(d.error)
+    } finally {
+      setGenerating(false)
+      await loadProducts()
+    }
+  }
+
   // ── Select card ───────────────────────────────────────────────────────────
   const selectProduct = (p: Product) => {
     setSelected(p)
@@ -144,7 +161,11 @@ export default function DashboardPage() {
           ) : (
             <>
               {/* IDEAS column — shows new/unapproved ideas */}
-              <IdeasColumn onResearch={() => setShowResearch(true)} />
+              <IdeasColumn
+                onResearch={() => setShowResearch(true)}
+                onProduce={handleProduceIdea}
+                producing={generating}
+              />
 
               {/* Kanban columns */}
               {COLUMNS.map(col => {
@@ -257,32 +278,94 @@ export default function DashboardPage() {
 }
 
 // ── Ideas side column (shows raw ideas queue) ─────────────────────────────────
-function IdeasColumn({ onResearch }: { onResearch: () => void }) {
+function IdeasColumn({
+  onResearch,
+  onProduce,
+  producing,
+}: {
+  onResearch: () => void
+  onProduce: (idea: Idea) => void
+  producing: boolean
+}) {
+  const [ideas,   setIdeas]   = useState<Idea[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/ideas')
+      .then(r => r.json())
+      .then(d => {
+        setIdeas((d.ideas || []).filter((i: Idea) => i.status === 'new'))
+        setLoading(false)
+      })
+  }, [producing]) // re-fetch when producing state changes (idea just got approved)
+
   return (
     <div style={{ width: 220, minWidth: 220, display: 'flex', flexDirection: 'column' }}>
+      {/* Column header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 12px', borderBottom: `2px solid ${C.grayDk}`, marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.gray }} />
           <span style={{ fontSize: 12, fontWeight: 600, color: C.grayLt, letterSpacing: '0.06em' }}>IDEAS</span>
         </div>
+        {ideas.length > 0 && (
+          <span style={{
+            background: `${C.gray}18`, border: `1px solid ${C.grayDk}`,
+            color: C.gray, borderRadius: 10, padding: '1px 7px', fontSize: 11, fontFamily: 'monospace',
+          }}>
+            {ideas.length}
+          </span>
+        )}
       </div>
+
+      {/* Research trigger */}
       <div
         onClick={onResearch}
         style={{
-          border:       `1px dashed ${C.border}`,
-          borderRadius: 10,
-          padding:      '20px 12px',
-          textAlign:    'center',
-          fontSize:     12,
-          color:        C.gray,
-          cursor:       'pointer',
-          transition:   'all 0.15s',
+          border: `1px dashed ${C.border}`, borderRadius: 10, padding: '12px',
+          textAlign: 'center', fontSize: 12, color: C.gray, cursor: 'pointer',
+          transition: 'all 0.15s', marginBottom: ideas.length ? 10 : 0,
         }}
       >
-        <div style={{ fontSize: 20, marginBottom: 8 }}>🔍</div>
-        <div style={{ color: C.grayLt, marginBottom: 4, fontWeight: 500 }}>Run Research</div>
-        <div style={{ color: C.gray, fontSize: 11 }}>Find market gaps & generate ideas</div>
+        <span style={{ marginRight: 6 }}>🔍</span>
+        <span style={{ color: C.grayLt, fontWeight: 500 }}>+ New Research</span>
       </div>
+
+      {/* Pending ideas */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '16px 0', color: C.grayDk, fontSize: 12 }}>…</div>
+      ) : ideas.map(idea => (
+        <div
+          key={idea.id}
+          style={{
+            background: C.surf2, border: `1px solid ${C.border}`, borderRadius: 10,
+            padding: '12px', marginBottom: 8,
+          }}
+        >
+          <div style={{ fontSize: 11, color: C.purpleLt, fontFamily: 'monospace', marginBottom: 5 }}>
+            {idea.price_estimate} · {idea.num_chapters}ch
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.white, lineHeight: 1.35, marginBottom: 6 }}>
+            {idea.title}
+          </div>
+          {idea.gap && (
+            <div style={{ fontSize: 11, color: C.gray, lineHeight: 1.4, marginBottom: 8 }}>
+              {idea.gap.length > 80 ? idea.gap.slice(0, 80) + '…' : idea.gap}
+            </div>
+          )}
+          <button
+            disabled={producing}
+            onClick={() => onProduce(idea)}
+            style={{
+              width: '100%', background: producing ? C.surf3 : C.green,
+              color: producing ? C.gray : '#000', border: 'none', borderRadius: 7,
+              padding: '7px', fontSize: 11, fontWeight: 700, cursor: producing ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {producing ? 'Working…' : '→ Produce'}
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

@@ -3,8 +3,10 @@ import { callClaude, buildSystemPrompt } from '@/lib/claude'
 import { getServiceClient } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
+  let chapter_id: string | null = null
   try {
-    const { chapter_id } = await req.json()
+    const body = await req.json()
+    chapter_id = body.chapter_id
     if (!chapter_id) return NextResponse.json({ error: 'chapter_id required' }, { status: 400 })
 
     const db = getServiceClient()
@@ -74,13 +76,10 @@ Rules:
 
     return NextResponse.json({ chapter_id, content, status: 'complete' })
   } catch (e: unknown) {
-    // Mark chapter as failed (back to pending so it can retry)
-    const db = getServiceClient()
-    const { chapter_id } = await req.json().catch(() => ({ chapter_id: null }))
     if (chapter_id) {
+      const db = getServiceClient()
       await db.from('chapters').update({ status: 'pending' }).eq('id', chapter_id)
     }
-
     const message = e instanceof Error ? e.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })
   }
