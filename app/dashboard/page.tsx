@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { C } from '@/lib/colors'
-import { Product, Settings, Idea } from '@/lib/supabase'
+import { Product, Idea } from '@/lib/supabase'
 import { Header } from '@/components/Header'
 import { KanbanCard } from '@/components/KanbanCard'
 import { ProductPanel } from '@/components/ProductPanel'
@@ -17,7 +17,6 @@ const COLUMNS: { key: Product['status']; label: string; color: string }[] = [
 
 export default function DashboardPage() {
   const [products,       setProducts]       = useState<Product[]>([])
-  const [settings,       setSettings]       = useState<Settings | null>(null)
   const [loading,        setLoading]        = useState(true)
   const [selected,       setSelected]       = useState<Product | null>(null)
   const [showResearch,   setShowResearch]   = useState(false)
@@ -31,7 +30,6 @@ export default function DashboardPage() {
     fetch('/api/settings')
       .then(r => r.json())
       .then(({ settings: s }) => {
-        setSettings(s)
         if (!s?.pin_enabled) {
           setUnlocked(true)
         } else {

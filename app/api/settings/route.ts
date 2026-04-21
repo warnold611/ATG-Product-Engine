@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase'
 
+function omitPinHash(data: Record<string, unknown>) {
+  const { pin_hash, ...safe } = data
+  void pin_hash
+  return safe
+}
+
 export async function GET() {
   try {
     const db = getServiceClient()
     const { data, error } = await db.from('settings').select('*').single()
     if (error) throw new Error(error.message)
-    // Never expose pin_hash to client
-    const { pin_hash: _, ...safe } = data
-    return NextResponse.json({ settings: safe })
+    return NextResponse.json({ settings: omitPinHash(data) })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })
@@ -21,7 +25,11 @@ export async function POST(req: NextRequest) {
     const db = getServiceClient()
 
     // Strip fields that should only be set via verify-pin route
-    const { pin_hash: _ph, id: _id, created_at: _ca, ...updates } = body
+    const updates = Object.fromEntries(
+      Object.entries(body as Record<string, unknown>).filter(
+        ([k]) => !['pin_hash', 'id', 'created_at'].includes(k)
+      )
+    )
 
     const { data, error } = await db
       .from('settings')
@@ -31,8 +39,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) throw new Error(error.message)
-    const { pin_hash: _pinHash, ...safe } = data
-    return NextResponse.json({ settings: safe })
+    return NextResponse.json({ settings: omitPinHash(data) })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })

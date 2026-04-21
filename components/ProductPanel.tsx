@@ -75,7 +75,6 @@ export function ProductPanel({
   const chapters     = (product.chapters || []).sort((a, b) => a.chapter_number - b.chapter_number)
   const marketing    = product.marketing
   const allChecked   = Object.values(checklist).every(Boolean)
-  const canPublish   = product.status === 'ready' && gumroadUrl.trim().length > 0
   const inProduction = product.status === 'in_production'
   const pendingCh    = chapters.filter(c => c.status === 'pending')
   const completedCh  = chapters.filter(c => c.status === 'complete')

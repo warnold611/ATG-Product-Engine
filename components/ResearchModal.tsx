@@ -24,7 +24,6 @@ type Stage = 'idle' | 'researching' | 'ideas' | 'generating'
 
 export function ResearchModal({ onClose, onDone }: ResearchModalProps) {
   const [stage,     setStage]     = useState<Stage>('idle')
-  const [research,  setResearch]  = useState('')
   const [ideas,     setIdeas]     = useState<Idea[]>([])
   const [selected,  setSelected]  = useState<Idea | null>(null)
   const [progress,  setProgress]  = useState('')
@@ -41,7 +40,6 @@ export function ResearchModal({ onClose, onDone }: ResearchModalProps) {
       const d1   = await res1.json()
       if (d1.error) throw new Error(d1.error)
 
-      setResearch(d1.research)
       setProgress('Generating 6 ebook concepts from research…')
 
       const res2 = await fetch('/api/generate-ideas', {

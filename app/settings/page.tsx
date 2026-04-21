@@ -23,7 +23,6 @@ const SESSION_OPTIONS = [
 export default function SettingsPage() {
   const router = useRouter()
 
-  const [settings, setSettings]         = useState<Record<string, unknown>>({})
   const [loading,  setLoading]          = useState(true)
   const [saving,   setSaving]           = useState(false)
   const [saved,    setSaved]            = useState(false)
@@ -48,7 +47,6 @@ export default function SettingsPage() {
     fetch('/api/settings')
       .then(r => r.json())
       .then(({ settings: s }) => {
-        setSettings(s)
         setPinEnabled(s.pin_enabled ?? false)
         setSessionHours(s.pin_session_hours ?? 4)
         setBrandVoice(s.brand_voice ?? '')
